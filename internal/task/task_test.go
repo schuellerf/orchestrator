@@ -84,6 +84,11 @@ func TestCreate(t *testing.T) {
 			if got := td.TranscriptPath(); got != wantTranscript {
 				t.Errorf("TranscriptPath() = %q, want %q", got, wantTranscript)
 			}
+
+			wantStdout := filepath.Join(outputDir, tt.taskName, "stdout.log")
+			if got := td.StdoutPath(); got != wantStdout {
+				t.Errorf("StdoutPath() = %q, want %q", got, wantStdout)
+			}
 		})
 	}
 }

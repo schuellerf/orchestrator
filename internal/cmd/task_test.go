@@ -194,6 +194,9 @@ func TestSetupGjollProxyVars(t *testing.T) {
 	if got := os.Getenv("TF_VAR_proxy_mode"); got != "vertex" {
 		t.Fatalf("TF_VAR_proxy_mode = %q, want vertex", got)
 	}
+	if got := os.Getenv("TF_VAR_proxy_port"); got != "18080" {
+		t.Fatalf("TF_VAR_proxy_port = %q, want 18080", got)
+	}
 	if got := os.Getenv("TF_VAR_vertex_project_id"); got != "proj-123" {
 		t.Fatalf("TF_VAR_vertex_project_id = %q, want proj-123", got)
 	}
@@ -220,6 +223,9 @@ func TestSetupGjollProxyVarsLocalLLM(t *testing.T) {
 	}
 	if got := os.Getenv("TF_VAR_llm_host_port"); got != "11434" {
 		t.Fatalf("TF_VAR_llm_host_port = %q, want 11434", got)
+	}
+	if got := os.Getenv("TF_VAR_llm_proxy_port"); got != "11434" {
+		t.Fatalf("TF_VAR_llm_proxy_port = %q, want 11434", got)
 	}
 }
 

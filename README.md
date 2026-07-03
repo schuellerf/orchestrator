@@ -180,7 +180,7 @@ Use gjoll libvirt VMs with a local LLM (Ollama or LM Studio) via gjoll's HTTP pa
      - your-username/*
    ```
 
-The orchestrator sets `TF_VAR_proxy_mode=local-llm` and `TF_VAR_llm_host_port` so the VM can reach your host LLM through gjoll's reverse proxy.
+The orchestrator sets `TF_VAR_proxy_mode=local-llm`, `TF_VAR_llm_host_port` (host Ollama/LM Studio port), and `TF_VAR_llm_proxy_port` (in-VM tunnel port, default **11434**) so the VM can reach your host LLM through gjoll's reverse proxy.
 
 ### Option 3: Gjoll Backend with Direct Anthropic API
 
@@ -390,7 +390,8 @@ orchestrator log -f <task-name>
 <output_dir>/<task-name>/
   repo/              # Pulled code (git repo with gjoll-<task-name> branch)
   conversations/     # Claude conversation archive (~/.claude/ from VM)
-  transcript.jsonl   # Stream-json transcript of the Claude session
+  stdout.log         # Raw gjoll SSH stdout (proxy banner + agent stream)
+  transcript.jsonl   # Stream-json transcript of the agent session (JSONL only)
   state.json         # Task metadata and state (name, description, opened PRs)
 ```
 

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/drellahq/orchestrator/internal/agent"
@@ -93,5 +94,26 @@ func TestTranscriptWriter_OpenCode(t *testing.T) {
 	want := "hello\n[tool] bash: list files\n  → file1\n[result] done ($0.0500, 1.0k↑ 200↓)\n"
 	if got := buf.String(); got != want {
 		t.Errorf("output = %q, want %q", got, want)
+	}
+}
+
+func TestJSONLWriterFiltersNonJSON(t *testing.T) {
+	var buf bytes.Buffer
+	jw := newJSONLWriter(&buf)
+
+	input := "Starting proxy...\n{\"type\":\"text\"}\nnot json\n{\"type\":\"tool_use\"}\n"
+	if _, err := jw.Write([]byte(input)); err != nil {
+		t.Fatalf("Write() error: %v", err)
+	}
+
+	got := buf.String()
+	if strings.Contains(got, "Starting proxy") {
+		t.Fatalf("stdout noise leaked into jsonl writer: %q", got)
+	}
+	if !strings.Contains(got, `{"type":"text"}`) {
+		t.Fatalf("missing JSON line: %q", got)
+	}
+	if strings.Contains(got, "not json") {
+		t.Fatalf("invalid line leaked into jsonl writer: %q", got)
 	}
 }

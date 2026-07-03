@@ -200,6 +200,11 @@ func (d *Dir) TranscriptPath() string {
 	return filepath.Join(d.root, "transcript.jsonl")
 }
 
+// StdoutPath returns the path to the raw agent SSH stdout log.
+func (d *Dir) StdoutPath() string {
+	return filepath.Join(d.root, "stdout.log")
+}
+
 // TranscriptPathFor returns the transcript path for a task by name,
 // without requiring a Dir instance.
 func TranscriptPathFor(outputDir, taskName string) string {

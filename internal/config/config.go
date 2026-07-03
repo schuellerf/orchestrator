@@ -48,6 +48,9 @@ const DefaultVertexRegion = "us-east5"
 // GjollCloudProxyPort is the in-VM port for gjoll credential proxies (vertex, anthropic).
 const GjollCloudProxyPort = 18080
 
+// GjollLocalLLMProxyPort is the in-VM port for the local-llm gjoll reverse proxy.
+const GjollLocalLLMProxyPort = 11434
+
 // DaemonConfig holds settings for the daemon polling loop.
 type DaemonConfig struct {
 	PollInterval      string   `yaml:"poll_interval"`
@@ -130,14 +133,18 @@ func (c *Config) LocalLLMHostPort() (int, error) {
 	return n, nil
 }
 
+// LocalLLMProxyPort returns the in-VM gjoll proxy port for local-llm mode.
+func (c *Config) LocalLLMProxyPort() int {
+	return GjollLocalLLMProxyPort
+}
+
 // GjollLLMBaseURL returns the Anthropic-compatible base URL agents use inside a gjoll VM.
 // Requests go through the gjoll reverse proxy defined in the .tf proxies output.
 func (c *Config) GjollLLMBaseURL() (string, error) {
-	port, err := c.LocalLLMHostPort()
-	if err != nil {
-		return "", err
+	if !c.UsesLocalLLM() {
+		return "", fmt.Errorf("local LLM is disabled")
 	}
-	return fmt.Sprintf("http://127.0.0.1:%d/v1", port), nil
+	return fmt.Sprintf("http://127.0.0.1:%d/v1", c.LocalLLMProxyPort()), nil
 }
 
 // GjollCloudLLMBaseURL returns the Anthropic-compatible base URL for gjoll cloud proxies inside the VM.

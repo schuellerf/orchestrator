@@ -255,6 +255,18 @@ func TestLocalLLMHostPort(t *testing.T) {
 	if port != 11434 {
 		t.Fatalf("port = %d, want 11434", port)
 	}
+}
+
+func TestLocalLLMProxyPort(t *testing.T) {
+	cfg := &Config{}
+	if got := cfg.LocalLLMProxyPort(); got != GjollLocalLLMProxyPort {
+		t.Fatalf("LocalLLMProxyPort() = %d, want %d", got, GjollLocalLLMProxyPort)
+	}
+}
+
+func TestGjollLLMBaseURL(t *testing.T) {
+	url := "http://127.0.0.1:11434/v1"
+	cfg := &Config{LLMBaseURL: &url}
 
 	got, err := cfg.GjollLLMBaseURL()
 	if err != nil {
@@ -262,6 +274,12 @@ func TestLocalLLMHostPort(t *testing.T) {
 	}
 	if got != "http://127.0.0.1:11434/v1" {
 		t.Fatalf("GjollLLMBaseURL() = %q", got)
+	}
+
+	empty := ""
+	cfg.LLMBaseURL = &empty
+	if _, err := cfg.GjollLLMBaseURL(); err == nil {
+		t.Fatal("expected error when local LLM is disabled")
 	}
 }
 

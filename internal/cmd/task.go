@@ -355,26 +355,33 @@ func executeTask(ctx context.Context, taskName, taskDescription string, taskDir 
 			return fmt.Errorf("making run script executable: %w", err)
 		}
 
-		var transcriptFlags int
+		var fileFlags int
 		switch {
 		case continueSession:
-			transcriptFlags = os.O_WRONLY | os.O_CREATE | os.O_APPEND
+			fileFlags = os.O_WRONLY | os.O_CREATE | os.O_APPEND
 		case round == 0:
-			transcriptFlags = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
+			fileFlags = os.O_WRONLY | os.O_CREATE | os.O_TRUNC
 		default:
-			transcriptFlags = os.O_WRONLY | os.O_CREATE | os.O_APPEND
+			fileFlags = os.O_WRONLY | os.O_CREATE | os.O_APPEND
 		}
-		transcriptFile, err := os.OpenFile(taskDir.TranscriptPath(), transcriptFlags, 0644)
+		stdoutFile, err := os.OpenFile(taskDir.StdoutPath(), fileFlags, 0644)
 		if err != nil {
+			return fmt.Errorf("opening stdout log: %w", err)
+		}
+		transcriptFile, err := os.OpenFile(taskDir.TranscriptPath(), fileFlags, 0644)
+		if err != nil {
+			stdoutFile.Close()
 			return fmt.Errorf("opening transcript file: %w", err)
 		}
 
+		jsonlW := newJSONLWriter(transcriptFile)
 		tw := newTranscriptWriter(os.Stdout, verbose, backend)
-		w := io.MultiWriter(tw, transcriptFile)
+		w := io.MultiWriter(stdoutFile, jsonlW, tw)
 		if err := runner.SSHProxyOutput(ctx, taskName, w, sshOpts, "bash", "-c", runner.AsUser(runScriptPath)); err != nil {
 			agentErr = err
 			slog.Error("Agent exited with error", "task", taskName, "agent", backend.Name(), "round", round+1, "error", err)
 		}
+		stdoutFile.Close()
 		transcriptFile.Close()
 
 		state, err := taskDir.LoadState()
@@ -649,13 +656,12 @@ func setupGjollProxyVars(cfg *config.Config, agentBackend string) error {
 
 	switch mode {
 	case "local-llm":
-		port, err := cfg.LocalLLMHostPort()
+		hostPort, err := cfg.LocalLLMHostPort()
 		if err != nil {
 			return err
 		}
-		portStr := strconv.Itoa(port)
-		os.Setenv("TF_VAR_llm_host_port", portStr)
-		os.Setenv("TF_VAR_llm_proxy_port", portStr)
+		os.Setenv("TF_VAR_llm_host_port", strconv.Itoa(hostPort))
+		os.Setenv("TF_VAR_llm_proxy_port", strconv.Itoa(cfg.LocalLLMProxyPort()))
 	case "anthropic":
 		os.Setenv("TF_VAR_anthropic_key_file", cfg.AnthropicKeyFile)
 	case "vertex":

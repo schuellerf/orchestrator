@@ -3,6 +3,7 @@ package cmd
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -112,6 +113,35 @@ func (tw *transcriptWriter) Write(p []byte) (int, error) {
 		formatted := tw.backend.FormatTranscriptLine(line, tw.verbose)
 		if formatted != "" {
 			if _, err := io.WriteString(tw.w, formatted); err != nil {
+				return 0, err
+			}
+		}
+	}
+	return len(p), nil
+}
+
+// jsonlWriter buffers input until complete lines are available and writes only
+// valid JSON object lines to the underlying writer.
+type jsonlWriter struct {
+	w   io.Writer
+	buf []byte
+}
+
+func newJSONLWriter(w io.Writer) *jsonlWriter {
+	return &jsonlWriter{w: w}
+}
+
+func (jw *jsonlWriter) Write(p []byte) (int, error) {
+	jw.buf = append(jw.buf, p...)
+	for {
+		idx := bytes.IndexByte(jw.buf, '\n')
+		if idx < 0 {
+			break
+		}
+		line := bytes.TrimSpace(jw.buf[:idx])
+		jw.buf = jw.buf[idx+1:]
+		if len(line) > 0 && json.Valid(line) {
+			if _, err := jw.w.Write(append(line, '\n')); err != nil {
 				return 0, err
 			}
 		}
