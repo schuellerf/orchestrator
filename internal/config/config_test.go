@@ -27,13 +27,14 @@ func TestLoad(t *testing.T) {
 			writeFile: true,
 			yaml:      "slack_webhook: https://hooks.slack.com/test\noutput_dir: /tmp/tasks\ngjoll_env: /path/to/sandbox.tf\nsandbox_backend: gjoll\nllm_base_url: \"\"\n",
 			want: Config{
-				SlackWebhook:   "https://hooks.slack.com/test",
-				OutputDir:      "/tmp/tasks",
-				SandboxBackend: "gjoll",
-				GjollEnv:       "/path/to/sandbox.tf",
-				PodmanImage:    "fedora:43",
-				AgentBackend:   "opencode",
-				LLMBaseURL:     strPtr(""),
+				SlackWebhook:     "https://hooks.slack.com/test",
+				OutputDir:        "/tmp/tasks",
+				SandboxBackend:   "gjoll",
+				GjollEnv:         "/path/to/sandbox.tf",
+				VertexRegion:     DefaultVertexRegion,
+				PodmanImage:      "fedora:43",
+				AgentBackend:     "opencode",
+				LLMBaseURL:       strPtr(""),
 				AnthropicKeyFile: "~/.anthropic/api_key",
 			},
 		},
@@ -45,7 +46,8 @@ func TestLoad(t *testing.T) {
 				SlackWebhook:   "https://hooks.slack.com/test",
 				OutputDir:      "./tasks",
 				SandboxBackend: "gjoll",
-				GjollEnv:       "./configs/sandbox.tf",
+				GjollEnv:       "../gjoll/examples/fedora-libvirt",
+				VertexRegion:   DefaultVertexRegion,
 				PodmanImage:    "fedora:43",
 				AgentBackend:   "opencode",
 				LLMBaseURL:     defaultLLMBaseURL(),
@@ -58,7 +60,8 @@ func TestLoad(t *testing.T) {
 			want: Config{
 				OutputDir:      "./tasks",
 				SandboxBackend: "gjoll",
-				GjollEnv:       "./configs/sandbox.tf",
+				GjollEnv:       "../gjoll/examples/fedora-libvirt",
+				VertexRegion:   DefaultVertexRegion,
 				PodmanImage:    "fedora:43",
 				AgentBackend:   "opencode",
 				LLMBaseURL:     defaultLLMBaseURL(),
@@ -71,7 +74,8 @@ func TestLoad(t *testing.T) {
 			want: Config{
 				OutputDir:      "./tasks",
 				SandboxBackend: "gjoll",
-				GjollEnv:       "./configs/sandbox.tf",
+				GjollEnv:       "../gjoll/examples/fedora-libvirt",
+				VertexRegion:   DefaultVertexRegion,
 				PodmanImage:    "fedora:43",
 				AgentBackend:   "opencode",
 				LLMBaseURL:     defaultLLMBaseURL(),
@@ -85,7 +89,8 @@ func TestLoad(t *testing.T) {
 			want: Config{
 				OutputDir:      "./tasks",
 				SandboxBackend: "gjoll",
-				GjollEnv:       "./configs/sandbox.tf",
+				GjollEnv:       "../gjoll/examples/fedora-libvirt",
+				VertexRegion:   DefaultVertexRegion,
 				PodmanImage:    "fedora:43",
 				AgentBackend:   "opencode",
 				LLMBaseURL:     defaultLLMBaseURL(),
@@ -102,7 +107,8 @@ func TestLoad(t *testing.T) {
 			want: Config{
 				OutputDir:      "./tasks",
 				SandboxBackend: "gjoll",
-				GjollEnv:       "./configs/sandbox.tf",
+				GjollEnv:       "../gjoll/examples/fedora-libvirt",
+				VertexRegion:   DefaultVertexRegion,
 				PodmanImage:    "fedora:43",
 				AgentBackend:   "opencode",
 				LLMBaseURL:     defaultLLMBaseURL(),
@@ -117,7 +123,8 @@ func TestLoad(t *testing.T) {
 			want: Config{
 				OutputDir:      "./tasks",
 				SandboxBackend: "gjoll",
-				GjollEnv:       "./configs/sandbox.tf",
+				GjollEnv:       "../gjoll/examples/fedora-libvirt",
+				VertexRegion:   DefaultVertexRegion,
 				PodmanImage:    "fedora:43",
 				AgentBackend:   "opencode",
 				LLMBaseURL:     defaultLLMBaseURL(),
@@ -135,7 +142,8 @@ func TestLoad(t *testing.T) {
 			want: Config{
 				OutputDir:      "./tasks",
 				SandboxBackend: "gjoll",
-				GjollEnv:       "./configs/sandbox.tf",
+				GjollEnv:       "../gjoll/examples/fedora-libvirt",
+				VertexRegion:   DefaultVertexRegion,
 				PodmanImage:    "fedora:43",
 				AgentBackend:   "opencode",
 				LLMBaseURL:     defaultLLMBaseURL(),
@@ -270,6 +278,39 @@ func TestAgentOptionsGjollLocalLLM(t *testing.T) {
 	}
 	if opts.LLMModel != "test-model" {
 		t.Fatalf("LLMModel = %q", opts.LLMModel)
+	}
+}
+
+func TestAgentOptionsGjollVertex(t *testing.T) {
+	empty := ""
+	cfg := &Config{
+		SandboxBackend: "gjoll",
+		LLMBaseURL:     &empty,
+		GjollEnv:       "../gjoll/examples/fedora-libvirt",
+	}
+	opts := cfg.AgentOptions()
+	want := GjollCloudLLMBaseURL()
+	if opts.LLMBaseURL != want {
+		t.Fatalf("LLMBaseURL = %q, want %q", opts.LLMBaseURL, want)
+	}
+}
+
+func TestResolvedGjollProxyMode(t *testing.T) {
+	url := "http://127.0.0.1:11434/v1"
+	cfg := &Config{LLMBaseURL: &url}
+	if got := cfg.ResolvedGjollProxyMode(); got != "local-llm" {
+		t.Fatalf("got %q, want local-llm", got)
+	}
+
+	empty := ""
+	cfg = &Config{LLMBaseURL: &empty, GjollEnv: "../gjoll/examples/fedora-libvirt"}
+	if got := cfg.ResolvedGjollProxyMode(); got != "vertex" {
+		t.Fatalf("got %q, want vertex", got)
+	}
+
+	cfg = &Config{LLMBaseURL: &empty, GjollEnv: "./configs/sandbox-anthropic.tf"}
+	if got := cfg.ResolvedGjollProxyMode(); got != "anthropic" {
+		t.Fatalf("got %q, want anthropic", got)
 	}
 }
 

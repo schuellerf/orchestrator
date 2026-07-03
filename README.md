@@ -35,21 +35,27 @@ make build
 
 For the lighter Podman path, skip to [Local Development → Option 1](#option-1-podman-backend-containers). For libvirt with Anthropic API instead of Vertex AI, see [Option 2](#option-2-gjoll-backend-with-direct-anthropic-api).
 
-1. Edit `configs/sandbox.tf` and replace `YOUR_PROJECT_ID_HERE` with your GCP project ID for Vertex AI.
-
-2. Copy the example config and adjust if needed:
+1. Copy the example config and set your GCP project for Vertex AI (when using cloud mode):
 
    ```bash
    cp orchestrator.yaml.example orchestrator.yaml
    ```
 
-3. Ensure libvirt's default network is active:
+   ```yaml
+   gjoll_env: "../gjoll/examples/fedora-libvirt"
+   llm_base_url: ""
+   vertex_project_id: "your-gcp-project"
+   ```
+
+   See [`configs/README.md`](configs/README.md) for local LLM and Anthropic API options.
+
+2. Ensure libvirt's default network is active:
 
    ```bash
    sudo virsh net-start default
    ```
 
-4. (Optional) Install the systemd user service for daemon mode:
+3. (Optional) Install the systemd user service for daemon mode:
 
    ```bash
    cp dist/orchestrator.service ~/.config/systemd/user/
@@ -79,7 +85,9 @@ The `orchestrator.yaml` file supports:
 | `slack_webhook`             | (empty)                   | Slack webhook URL for task notifications   |
 | `output_dir`                | `./tasks`                 | Directory for task output                  |
 | `sandbox_backend`           | `gjoll`                   | Sandbox backend: `gjoll` (VMs) or `podman` (containers) |
-| `gjoll_env`                 | `./configs/sandbox.tf`    | Path to gjoll .tf environment file (gjoll backend) |
+| `gjoll_env`                 | `../gjoll/examples/fedora-libvirt` | Path to gjoll .tf file or directory (gjoll backend) |
+| `vertex_project_id`       | (empty)                   | GCP project ID for Vertex AI (required when `llm_base_url` is empty) |
+| `vertex_region`             | `us-east5`                | GCP region for Vertex AI proxy target |
 | `podman_image`              | `fedora:43`               | Container image for sandboxes (podman backend) |
 | `anthropic_key_file`        | (empty)                   | Path to Anthropic API key when using cloud Anthropic (not needed with default LM Studio) |
 | `agent_backend`             | `opencode`                | Coding agent backend: `claude-code` or `opencode` |
@@ -164,7 +172,7 @@ Use gjoll libvirt VMs with a local LLM (Ollama or LM Studio) via gjoll's HTTP pa
 2. Configure `orchestrator.yaml`:
    ```yaml
    sandbox_backend: "gjoll"
-   gjoll_env: "../gjoll/examples/fedora-libvirt.tf"
+   gjoll_env: "../gjoll/examples/fedora-libvirt"
    llm_base_url: "http://127.0.0.1:11434/v1"
    llm_model: "your-model-id"
    output_dir: "./tasks"
@@ -172,7 +180,7 @@ Use gjoll libvirt VMs with a local LLM (Ollama or LM Studio) via gjoll's HTTP pa
      - your-username/*
    ```
 
-The orchestrator sets `TF_VAR_llm_host_port` so the VM can reach your host LLM through gjoll's reverse proxy.
+The orchestrator sets `TF_VAR_proxy_mode=local-llm` and `TF_VAR_llm_host_port` so the VM can reach your host LLM through gjoll's reverse proxy.
 
 ### Option 3: Gjoll Backend with Direct Anthropic API
 

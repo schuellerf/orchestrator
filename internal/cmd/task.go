@@ -243,8 +243,8 @@ func executeTask(ctx context.Context, taskName, taskDescription string, taskDir 
 			return fmt.Errorf("resolving tf path: %w", err)
 		}
 
-		if err := setupGjollLLMProxyVars(cfg); err != nil {
-			return fmt.Errorf("configuring gjoll LLM proxy: %w", err)
+		if err := setupGjollProxyVars(cfg); err != nil {
+			return fmt.Errorf("configuring gjoll proxy: %w", err)
 		}
 
 		slog.Info("Provisioning sandbox", "task", taskName)
@@ -437,6 +437,9 @@ func setupSandbox(ctx context.Context, runner sandbox.Runner, backend agent.Back
 		installCmd := backend.InstallCmd()
 		if err := runner.SSH(ctx, taskName, "bash", "-c", runner.AsUser(installCmd)); err != nil {
 			return fmt.Errorf("installing agent: %w", err)
+		}
+		if err := setupGjollAgentEnv(ctx, runner, backend, taskName, cfg); err != nil {
+			return fmt.Errorf("configuring agent environment: %w", err)
 		}
 	}
 
@@ -635,20 +638,61 @@ func hasLabel(labels []string, name string) bool {
 	return false
 }
 
-// setupGjollLLMProxyVars sets OpenTofu variables for the local LLM passthrough proxy
-// in gjoll .tf files (e.g. gjoll/examples/fedora-libvirt.tf).
-func setupGjollLLMProxyVars(cfg *config.Config) error {
-	if cfg.SandboxBackend != "gjoll" || !cfg.UsesLocalLLM() {
+// setupGjollProxyVars sets OpenTofu variables for unified gjoll libvirt templates.
+func setupGjollProxyVars(cfg *config.Config) error {
+	if cfg.SandboxBackend != "gjoll" {
 		return nil
 	}
-	port, err := cfg.LocalLLMHostPort()
-	if err != nil {
+
+	mode := cfg.ResolvedGjollProxyMode()
+	if err := os.Setenv("TF_VAR_proxy_mode", mode); err != nil {
 		return err
 	}
-	portStr := strconv.Itoa(port)
-	os.Setenv("TF_VAR_llm_host_port", portStr)
-	os.Setenv("TF_VAR_llm_proxy_port", portStr)
+
+	switch mode {
+	case "local-llm":
+		port, err := cfg.LocalLLMHostPort()
+		if err != nil {
+			return err
+		}
+		portStr := strconv.Itoa(port)
+		os.Setenv("TF_VAR_llm_host_port", portStr)
+		os.Setenv("TF_VAR_llm_proxy_port", portStr)
+	case "anthropic":
+		os.Setenv("TF_VAR_anthropic_key_file", cfg.AnthropicKeyFile)
+	case "vertex":
+		os.Setenv("TF_VAR_vertex_project_id", cfg.VertexProjectID)
+		os.Setenv("TF_VAR_vertex_region", cfg.VertexRegion)
+		os.Setenv("TF_VAR_proxy_port", strconv.Itoa(config.GjollCloudProxyPort))
+	}
 	return nil
+}
+
+// setupGjollAgentEnv configures agent-specific environment inside gjoll sandboxes.
+func setupGjollAgentEnv(ctx context.Context, runner sandbox.Runner, backend agent.Backend, taskName string, cfg *config.Config) error {
+	if backend.Name() != "claude-code" || !cfg.UsesVertexProxy() {
+		return nil
+	}
+	if cfg.VertexProjectID == "" {
+		return fmt.Errorf("vertex_project_id is required for Claude Code with Vertex AI")
+	}
+
+	region := cfg.VertexRegion
+	if region == "" {
+		region = config.DefaultVertexRegion
+	}
+
+	cmd := fmt.Sprintf(`cat >> ~/.bashrc <<'RCEOF'
+export CLAUDE_CODE_USE_VERTEX=1
+export CLOUD_ML_REGION=%s
+export ANTHROPIC_VERTEX_PROJECT_ID=%s
+export ANTHROPIC_VERTEX_BASE_URL=http://localhost:%d
+export CLAUDE_CODE_SKIP_VERTEX_AUTH=1
+export ANTHROPIC_MODEL=claude-opus-4-6
+alias claude='claude --dangerously-skip-permissions'
+RCEOF`, region, cfg.VertexProjectID, config.GjollCloudProxyPort)
+
+	return runner.SSH(ctx, taskName, "bash", "-c", runner.AsUser(cmd))
 }
 
 // setupRHELSubscription creates an activation key via the Red Hat API and persists

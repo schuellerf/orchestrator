@@ -17,11 +17,19 @@
 # sandbox_backend: "gjoll"
 
 # Gjoll backend settings (for VM-based sandboxes):
-# Path to the gjoll .tf file for sandbox provisioning.
-# - Local LLM + libvirt: gjoll/examples/fedora-libvirt.tf (gjoll proxy to host LM Studio/Ollama)
-# - Vertex AI cloud: ./configs/sandbox.tf (edit project ID first)
-# - Anthropic API cloud: configs/sandbox-anthropic-api.tf.example
-# gjoll_env: "./configs/sandbox.tf"
+# Unified libvirt template — proxy mode is selected from llm_base_url / gjoll_env path.
+# gjoll_env: "../gjoll/examples/fedora-libvirt"
+#
+# Vertex AI (cloud, default when llm_base_url is empty):
+# llm_base_url: ""
+# vertex_project_id: "your-gcp-project"
+# vertex_region: "us-east5"
+#
+# Local LLM (Ollama / LM Studio):
+# llm_base_url: "http://127.0.0.1:11434/v1"
+# llm_model: "your-model-id"
+#
+# Anthropic API: gjoll_env path containing "anthropic" (see configs/README.md)
 
 # Podman backend settings (for container-based sandboxes):
 # Container image to use for sandboxes.

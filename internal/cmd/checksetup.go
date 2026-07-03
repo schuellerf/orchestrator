@@ -115,12 +115,13 @@ func runCheckSetup(cmd *cobra.Command, _ []string) error {
 		pass("go: " + version)
 	}
 
-	gjollEnv := "./configs/sandbox.tf"
-	usesVertexTF := true
+	gjollEnv := "../gjoll/examples/fedora-libvirt"
+	proxyMode := "vertex"
 	needsAnthropicKey := false
 
 	if cfg != nil {
 		gjollEnv = cfg.GjollEnv
+		proxyMode = cfg.ResolvedGjollProxyMode()
 		if !cfg.UsesLocalLLM() {
 			if backend == "podman" {
 				needsAnthropicKey = true
@@ -133,8 +134,7 @@ func runCheckSetup(cmd *cobra.Command, _ []string) error {
 	} else {
 		gjollEnv = filepath.Join(repoRoot, gjollEnv)
 	}
-	usesVertexTF = strings.Contains(gjollEnv, "sandbox.tf") && !strings.Contains(gjollEnv, "anthropic")
-	if backend == "gjoll" && !usesVertexTF && (cfg == nil || !cfg.UsesLocalLLM()) {
+	if backend == "gjoll" && proxyMode == "anthropic" {
 		needsAnthropicKey = true
 	}
 
@@ -173,15 +173,20 @@ func runCheckSetup(cmd *cobra.Command, _ []string) error {
 			warn("libvirt default network is inactive — run: sudo virsh net-start default")
 		}
 
-		if usesVertexTF {
+		if proxyMode == "vertex" {
+			if cfg != nil && cfg.VertexProjectID == "" {
+				warn("vertex_project_id not set in orchestrator.yaml — required for Vertex AI proxy mode")
+			}
 			if err := exec.Command("gcloud", "auth", "application-default", "print-access-token").Run(); err != nil {
-				warn("GCP ADC not configured — gjoll_env uses sandbox.tf (Vertex AI); run: gcloud auth application-default login")
-				warn("Or use Local Development Option 2 with configs/sandbox-anthropic-api.tf.example")
+				warn("GCP ADC not configured — run: gcloud auth application-default login")
+				warn("Or set llm_base_url for local LLM, or use anthropic gjoll_env for direct API")
 			} else {
 				pass("GCP Application Default Credentials configured")
 			}
+		} else if proxyMode == "local-llm" {
+			pass("gjoll_env uses local LLM proxy (" + gjollEnv + ")")
 		} else {
-			pass("gjoll_env uses Anthropic API path (" + gjollEnv + ")")
+			pass("gjoll_env uses Anthropic API proxy (" + gjollEnv + ")")
 		}
 	}
 

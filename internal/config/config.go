@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/drellahq/orchestrator/internal/agent"
@@ -41,6 +42,12 @@ func (a AgentConfig) OpenCodeBashTimeoutDuration() (time.Duration, error) {
 
 const DefaultLLMBaseURL = "http://127.0.0.1:1234/v1"
 
+// DefaultVertexRegion is the default GCP region for Vertex AI proxy targets.
+const DefaultVertexRegion = "us-east5"
+
+// GjollCloudProxyPort is the in-VM port for gjoll credential proxies (vertex, anthropic).
+const GjollCloudProxyPort = 18080
+
 // DaemonConfig holds settings for the daemon polling loop.
 type DaemonConfig struct {
 	PollInterval      string   `yaml:"poll_interval"`
@@ -57,7 +64,11 @@ type Config struct {
 	SandboxBackend string `yaml:"sandbox_backend"`
 
 	// Gjoll backend settings
-	GjollEnv string `yaml:"gjoll_env"` // path to .tf file for VM provisioning
+	GjollEnv string `yaml:"gjoll_env"` // path to .tf file or directory for VM provisioning
+
+	// Vertex AI settings (gjoll proxy_mode=vertex)
+	VertexProjectID string `yaml:"vertex_project_id"`
+	VertexRegion    string `yaml:"vertex_region"`
 
 	// Podman backend settings
 	PodmanImage      string `yaml:"podman_image"`       // container image (e.g. "fedora:43")
@@ -129,16 +140,41 @@ func (c *Config) GjollLLMBaseURL() (string, error) {
 	return fmt.Sprintf("http://127.0.0.1:%d/v1", port), nil
 }
 
+// GjollCloudLLMBaseURL returns the Anthropic-compatible base URL for gjoll cloud proxies inside the VM.
+func GjollCloudLLMBaseURL() string {
+	return fmt.Sprintf("http://127.0.0.1:%d/v1", GjollCloudProxyPort)
+}
+
 // AgentOptions returns agent backend options derived from this config.
-// For gjoll sandboxes with a local LLM, the base URL targets the in-VM proxy port.
+// For gjoll sandboxes, the base URL targets the in-VM gjoll proxy port.
 func (c *Config) AgentOptions() agent.Options {
 	llmURL := c.LocalLLMBaseURL()
-	if c.SandboxBackend == "gjoll" && c.UsesLocalLLM() {
-		if proxyURL, err := c.GjollLLMBaseURL(); err == nil {
-			llmURL = proxyURL
+	if c.SandboxBackend == "gjoll" {
+		if c.UsesLocalLLM() {
+			if proxyURL, err := c.GjollLLMBaseURL(); err == nil {
+				llmURL = proxyURL
+			}
+		} else if !strings.Contains(c.GjollEnv, "anthropic") {
+			llmURL = GjollCloudLLMBaseURL()
 		}
 	}
 	return agent.Options{LLMBaseURL: llmURL, LLMModel: c.LLMModel}
+}
+
+// ResolvedGjollProxyMode returns the proxy_mode value for unified gjoll libvirt templates.
+func (c *Config) ResolvedGjollProxyMode() string {
+	if c.UsesLocalLLM() {
+		return "local-llm"
+	}
+	if strings.Contains(c.GjollEnv, "anthropic") {
+		return "anthropic"
+	}
+	return "vertex"
+}
+
+// UsesVertexProxy reports whether gjoll sandboxes use the Vertex AI credential proxy.
+func (c *Config) UsesVertexProxy() bool {
+	return c.SandboxBackend == "gjoll" && !c.UsesLocalLLM() && !strings.Contains(c.GjollEnv, "anthropic")
 }
 
 // AnthropicKeyPath returns the API key file path for sandbox provisioning, or empty when using a local LLM.
@@ -180,7 +216,10 @@ func Load(path string) (*Config, error) {
 		cfg.SandboxBackend = "gjoll"
 	}
 	if cfg.GjollEnv == "" {
-		cfg.GjollEnv = "./configs/sandbox.tf"
+		cfg.GjollEnv = "../gjoll/examples/fedora-libvirt"
+	}
+	if cfg.VertexRegion == "" {
+		cfg.VertexRegion = DefaultVertexRegion
 	}
 	if cfg.PodmanImage == "" {
 		cfg.PodmanImage = "fedora:43"
