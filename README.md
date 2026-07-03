@@ -277,7 +277,7 @@ The per-task override takes precedence over the `agent_backend` config field.
 
 ### Issue attachments
 
-When a task is created from a tasks-repo GitHub issue (`--source-repo` / `--source-issue`, set automatically by the daemon), the orchestrator scans the **task description** for `https://github.com/user-attachments/...` links (the daemon passes the full issue body, so no extra API call is needed). If the description has no such links but `--source-issue` is set, the issue body is re-fetched via `gh api` before scanning. Matching files are downloaded on the host using `gh` credentials and copied into the sandbox at `~/attachments/`. The initial Claude prompt includes a manifest listing the local filenames. Requires an authenticated `gh` on the host.
+When a task is created from a tasks-repo GitHub issue (`--source-repo` / `--source-issue`, set automatically by the daemon), the orchestrator scans the **task description** for `https://github.com/user-attachments/...` links (the daemon passes the full issue body, so no extra API call is needed). If the description has no such links but `--source-issue` is set, the issue body is re-fetched via `gh api` before scanning. Matching files are downloaded on the host using `gh` credentials and copied into the sandbox at `~/attachments/`. The initial agent prompt includes a manifest listing the local filenames. Requires an authenticated `gh` on the host.
 
 **See also:** [Dashboard](#dashboard) for browsing tasks in the browser; [Setup](#setup) step 4 for daemon mode via systemd; `make check` to verify prerequisites.
 
@@ -321,7 +321,7 @@ trailer are left unchanged. The flag works with both `open_pr` and `update_pr`
 MCP tools. The author is persisted in the task state, so `task continue`
 automatically uses the same author without needing to specify it again.
 
-To continue a stopped task with a new prompt (resumes the VM and Claude conversation):
+To continue a stopped task with a new prompt (resumes the VM and agent conversation):
 
 ```bash
 orchestrator task continue <task-name> <new-prompt...>
@@ -380,8 +380,8 @@ orchestrator log -f <task-name>
 2. MCP server starts on `127.0.0.1:19090`
 3. Sandbox VM is provisioned via gjoll
 4. Git author, system prompt, and MCP client are configured in the VM
-5. Claude runs in `$HOME` with `-p --output-format stream-json` (with proxy tunnels for Vertex AI and MCP)
-6. Stream-json output is piped through `tee` to `~/transcript.jsonl` in the VM
+5. The configured agent runs in the sandbox (stream-json or JSON output, with proxy tunnels for Vertex AI and MCP when applicable)
+6. Agent output is piped through `tee` to `~/transcript.jsonl` in the VM
 7. On completion, the transcript and conversations are archived and the VM is stopped
 
 ## Task Output Structure
@@ -389,7 +389,7 @@ orchestrator log -f <task-name>
 ```
 <output_dir>/<task-name>/
   repo/              # Pulled code (git repo with gjoll-<task-name> branch)
-  conversations/     # Claude conversation archive (~/.claude/ from VM)
+  conversations/     # Agent conversation archive (~/.claude/ or ~/.opencode/ from VM)
   stdout.log         # Raw gjoll SSH stdout (proxy banner + agent stream)
   transcript.jsonl   # Stream-json transcript of the agent session (JSONL only)
   state.json         # Task metadata and state (name, description, opened PRs)
@@ -399,12 +399,13 @@ orchestrator log -f <task-name>
 
 ```
 Host                              Sandbox VM
-+-----------+                     +------------------+
-|orchestrator|--gjoll ssh/proxy-->| Claude Code      |
-|           |                     |   (no credentials)|
-| MCP Server|<--reverse tunnel----|   calls open_pr   |
-| (port     |                     |                  |
-|  19090)   |                     +------------------+
++-----------+                     +------------------------+
+|orchestrator|--gjoll ssh/proxy-->| Coding agent           |
+|           |                     | (claude-code/opencode) |
+|           |                     |   (no credentials)     |
+| MCP Server|<--reverse tunnel----|   calls open_pr        |
+| (port     |                     |                        |
+|  19090)   |                     +------------------------+
 |           |
 | Vertex    |--reverse tunnel---->  http://localhost:18080
 | Proxy     |                       (GCP auth injected)
@@ -431,7 +432,7 @@ The dashboard is available at `http://localhost:2080`. Caddy serves the `dashboa
 ### Features
 
 - **Task list** — auto-refreshes every 30 seconds, shows name, description, author, and linked PRs
-- **Transcript viewer** — renders Claude session transcripts with syntax-highlighted tool calls, collapsible thinking blocks, and sub-agent progress
+- **Transcript viewer** — renders agent session transcripts with syntax-highlighted tool calls, collapsible thinking blocks, and sub-agent progress
 - **Live tailing** — polls the transcript every 5 seconds via HTTP Range requests, so you can watch a running task in the browser
 - **Keyboard shortcuts** — `Escape` to return to the task list, `r` to refresh
 

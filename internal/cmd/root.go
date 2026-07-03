@@ -13,8 +13,8 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:   "orchestrator",
-	Short: "Orchestrate agentic Claude sandboxes",
-	Long: `Orchestrator spawns sandboxed Claude instances using gjoll (libvirt backend),
+	Short: "Orchestrate agentic coding sandboxes",
+	Long: `Orchestrator spawns sandboxed coding agent instances using gjoll (libvirt backend),
 exposes an MCP server for privileged actions like pulling code, and manages
 task lifecycle including conversation archival and code retrieval.`,
 }

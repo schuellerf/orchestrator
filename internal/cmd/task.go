@@ -45,9 +45,9 @@ var taskCmd = &cobra.Command{
 
 var taskNewCmd = &cobra.Command{
 	Use:   "new <task-name> <task-description...>",
-	Short: "Run a new task in a sandboxed Claude instance",
+	Short: "Run a new task in a sandboxed agent",
 	Long: `Provisions a sandbox VM via gjoll, starts an MCP server for code pulling,
-launches Claude with the task description, and archives the results.`,
+launches the configured coding agent with the task description, and archives the results.`,
 	Args: cobra.MinimumNArgs(2),
 	RunE: runTask,
 }
@@ -55,7 +55,7 @@ launches Claude with the task description, and archives the results.`,
 var taskContinueCmd = &cobra.Command{
 	Use:   "continue <task-name> <task-description...>",
 	Short: "Continue a stopped task with a new prompt",
-	Long: `Resumes a stopped sandbox VM, starts an MCP server, and launches Claude
+	Long: `Resumes a stopped sandbox VM, starts an MCP server, and launches the configured agent
 with --continue to resume the previous conversation with a new prompt.`,
 	Args: cobra.MinimumNArgs(2),
 	RunE: continueTask,
@@ -307,7 +307,7 @@ func executeTask(ctx context.Context, taskName, taskDescription string, taskDir 
 	if backend.Name() == "opencode" {
 		systemPromptFile = ""
 	}
-	runScriptPath := home + "/run-claude.sh"
+	runScriptPath := home + "/" + agent.RunScriptName
 	sshOpts := &sandbox.SSHOpts{
 		Proxy:          cfg.SandboxBackend == "gjoll",
 		ReverseTunnels: []string{mcpTunnel},
@@ -334,7 +334,7 @@ func executeTask(ctx context.Context, taskName, taskDescription string, taskDir 
 		slog.Info("Running agent", "task", taskName, "agent", backend.Name(), "round", round+1, "continue", sessionContinue)
 
 		runScript := backend.BuildRunScript(prompt, sessionContinue, systemPromptFile, cfg.Agent.MaxBudgetUSD, opencodeBashTimeout)
-		tmpRun, err := os.CreateTemp("", "run-claude-*.sh")
+		tmpRun, err := os.CreateTemp("", "run-agent-*.sh")
 		if err != nil {
 			return fmt.Errorf("creating run script: %w", err)
 		}

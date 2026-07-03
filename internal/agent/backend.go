@@ -6,6 +6,9 @@ import (
 	"time"
 )
 
+// RunScriptName is the filename of the agent invocation script copied into sandboxes.
+const RunScriptName = "run-agent.sh"
+
 // Backend defines how to install, configure, and invoke a coding agent.
 type Backend interface {
 	// Name returns the backend identifier ("claude-code" or "opencode").
