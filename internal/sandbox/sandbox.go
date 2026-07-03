@@ -60,8 +60,8 @@ type Runner interface {
 }
 
 // NewFromConfig creates the appropriate Runner based on configuration.
-// agentInstallCmd is the shell command to install the coding agent (used by podman;
-// gjoll sandboxes install via the .tf file's init_script output).
+// agentInstallCmd installs the coding agent in podman containers; gjoll installs
+// via the environment's init_script output (TF_VAR_agent_backend).
 // When rhel is non-nil, subscription-manager registration runs during Up via SSH
 // (podman as root, gjoll as the VM's SSH user with sudo).
 // Returns an error if the backend name is not recognized.

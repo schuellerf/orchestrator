@@ -172,3 +172,96 @@ func TestResolveTaskSource(t *testing.T) {
 		t.Error("expected not ok without source")
 	}
 }
+
+func TestSetupGjollProxyVars(t *testing.T) {
+	clearGjollTFVars(t)
+
+	empty := ""
+	cfg := &config.Config{
+		SandboxBackend:  "gjoll",
+		LLMBaseURL:      &empty,
+		VertexProjectID: "proj-123",
+		VertexRegion:    config.DefaultVertexRegion,
+		GjollEnv:        "../gjoll/examples/fedora-libvirt",
+	}
+
+	if err := setupGjollProxyVars(cfg, "opencode"); err != nil {
+		t.Fatalf("setupGjollProxyVars() error: %v", err)
+	}
+	if got := os.Getenv("TF_VAR_agent_backend"); got != "opencode" {
+		t.Fatalf("TF_VAR_agent_backend = %q, want opencode", got)
+	}
+	if got := os.Getenv("TF_VAR_proxy_mode"); got != "vertex" {
+		t.Fatalf("TF_VAR_proxy_mode = %q, want vertex", got)
+	}
+	if got := os.Getenv("TF_VAR_vertex_project_id"); got != "proj-123" {
+		t.Fatalf("TF_VAR_vertex_project_id = %q, want proj-123", got)
+	}
+}
+
+func TestSetupGjollProxyVarsLocalLLM(t *testing.T) {
+	clearGjollTFVars(t)
+
+	url := "http://127.0.0.1:11434/v1"
+	cfg := &config.Config{
+		SandboxBackend: "gjoll",
+		LLMBaseURL:     &url,
+		GjollEnv:       "../gjoll/examples/fedora-libvirt",
+	}
+
+	if err := setupGjollProxyVars(cfg, "claude-code"); err != nil {
+		t.Fatalf("setupGjollProxyVars() error: %v", err)
+	}
+	if got := os.Getenv("TF_VAR_agent_backend"); got != "claude-code" {
+		t.Fatalf("TF_VAR_agent_backend = %q, want claude-code", got)
+	}
+	if got := os.Getenv("TF_VAR_proxy_mode"); got != "local-llm" {
+		t.Fatalf("TF_VAR_proxy_mode = %q, want local-llm", got)
+	}
+	if got := os.Getenv("TF_VAR_llm_host_port"); got != "11434" {
+		t.Fatalf("TF_VAR_llm_host_port = %q, want 11434", got)
+	}
+}
+
+func TestSetupGjollProxyVarsVertexRequiresProject(t *testing.T) {
+	clearGjollTFVars(t)
+
+	empty := ""
+	cfg := &config.Config{
+		SandboxBackend: "gjoll",
+		LLMBaseURL:     &empty,
+		GjollEnv:       "../gjoll/examples/fedora-libvirt",
+	}
+
+	if err := setupGjollProxyVars(cfg, "claude-code"); err == nil {
+		t.Fatal("expected error when vertex_project_id is missing for claude-code + vertex")
+	}
+}
+
+func TestSetupGjollProxyVarsSkipsPodman(t *testing.T) {
+	clearGjollTFVars(t)
+
+	cfg := &config.Config{SandboxBackend: "podman"}
+	if err := setupGjollProxyVars(cfg, "opencode"); err != nil {
+		t.Fatalf("setupGjollProxyVars() error: %v", err)
+	}
+	if got := os.Getenv("TF_VAR_agent_backend"); got != "" {
+		t.Fatalf("TF_VAR_agent_backend = %q, want unset for podman", got)
+	}
+}
+
+func clearGjollTFVars(t *testing.T) {
+	t.Helper()
+	for _, key := range []string{
+		"TF_VAR_agent_backend",
+		"TF_VAR_proxy_mode",
+		"TF_VAR_llm_host_port",
+		"TF_VAR_llm_proxy_port",
+		"TF_VAR_vertex_project_id",
+		"TF_VAR_vertex_region",
+		"TF_VAR_proxy_port",
+		"TF_VAR_anthropic_key_file",
+	} {
+		t.Setenv(key, "")
+	}
+}

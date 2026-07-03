@@ -6,13 +6,18 @@ Use the unified libvirt template in the gjoll repository:
 ../gjoll/examples/fedora-libvirt
 ```
 
-Proxy mode is selected automatically from `orchestrator.yaml`:
+The orchestrator sets `TF_VAR_proxy_mode` and `TF_VAR_agent_backend` from `orchestrator.yaml` before `gjoll up`. Agent install runs in the environment `init_script`.
 
 | Setting | `proxy_mode` |
 |---------|--------------|
 | `llm_base_url` set (local LLM) | `local-llm` |
 | `llm_base_url: ""` + `vertex_project_id` | `vertex` (default cloud) |
 | `gjoll_env` path contains `anthropic` | `anthropic` |
+
+| Setting | `agent_backend` (→ `TF_VAR_agent_backend`) |
+|---------|---------------------------------------------|
+| `agent_backend: "opencode"` | `opencode` |
+| `agent_backend: "claude-code"` | `claude-code` |
 
 ## Vertex AI (default cloud)
 
@@ -37,15 +42,15 @@ agent_backend: "opencode"
 
 ## Anthropic API (direct)
 
-Set `gjoll_env` to a path containing `anthropic`, e.g. copy
-`sandbox-anthropic-api.tf.example` to `sandbox-anthropic.tf`, or use the unified
-template with `proxy_mode=anthropic` via orchestrator (path must contain `anthropic`).
+Use the unified template with a `gjoll_env` path containing `anthropic` (symlink or copy):
+
+```bash
+ln -s ../gjoll/examples/fedora-libvirt configs/sandbox-anthropic
+```
 
 ```yaml
-gjoll_env: "./configs/sandbox-anthropic.tf"
+gjoll_env: "./configs/sandbox-anthropic"
 llm_base_url: ""
 anthropic_key_file: "~/.anthropic/api_key"
 agent_backend: "claude-code"
 ```
-
-Agent installation and configuration are handled by the orchestrator at runtime, not in the Terraform `init_script`.

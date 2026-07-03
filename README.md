@@ -192,16 +192,17 @@ Use gjoll VMs (same as cloud deployment) but with direct Anthropic API instead o
 
 **Setup:**
 
-1. Copy the Anthropic API example config:
+1. Symlink the unified libvirt template (path must contain `anthropic` for proxy mode selection):
    ```bash
-   cp configs/sandbox-anthropic-api.tf.example configs/sandbox-anthropic.tf
+   ln -s ../gjoll/examples/fedora-libvirt configs/sandbox-anthropic
    ```
 
 2. Configure `orchestrator.yaml`:
    ```yaml
    sandbox_backend: "gjoll"
-   gjoll_env: "./configs/sandbox-anthropic.tf"
+   gjoll_env: "./configs/sandbox-anthropic"
    llm_base_url: ""
+   agent_backend: "claude-code"
    output_dir: "./tasks"
    allowed_repos:
      - your-username/*
@@ -250,10 +251,7 @@ are parsed. Both backends produce the same human-readable output for
 | Bash command timeout | No hard default cap | `OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` via `agent.opencode_bash_timeout` (default `3h`) |
 | Transcript format | `stream-json` | `--format json` |
 
-When using the podman sandbox backend, the agent is installed automatically in
-the container. When using gjoll, the agent must be installed by the `.tf` file's
-`init_script` output — see the [gjoll examples](https://github.com/drellabot/gjoll/tree/main/examples)
-for both Claude Code and OpenCode variants.
+When using the podman sandbox backend, the agent is installed in the container at startup. When using gjoll, the agent is installed by the environment `init_script` during `gjoll up`; the orchestrator sets `TF_VAR_agent_backend` from `agent_backend` in `orchestrator.yaml`. See [`examples/fedora-libvirt/`](examples/fedora-libvirt/) for the composable init snippets.
 
 **Per-task override.** You can override the backend for a single task using the
 `--agent-backend` flag:
