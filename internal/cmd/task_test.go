@@ -183,6 +183,7 @@ func TestSetupGjollProxyVars(t *testing.T) {
 		VertexProjectID: "proj-123",
 		VertexRegion:    config.DefaultVertexRegion,
 		GjollEnv:        "../gjoll/examples/fedora-libvirt",
+		AWSAMIID:        config.DefaultAWSAMIID,
 	}
 
 	if err := setupGjollProxyVars(cfg, "opencode"); err != nil {
@@ -199,6 +200,9 @@ func TestSetupGjollProxyVars(t *testing.T) {
 	}
 	if got := os.Getenv("TF_VAR_vertex_project_id"); got != "proj-123" {
 		t.Fatalf("TF_VAR_vertex_project_id = %q, want proj-123", got)
+	}
+	if got := os.Getenv("TF_VAR_ami_id"); got != config.DefaultAWSAMIID {
+		t.Fatalf("TF_VAR_ami_id = %q, want %s", got, config.DefaultAWSAMIID)
 	}
 }
 
@@ -267,6 +271,7 @@ func clearGjollTFVars(t *testing.T) {
 		"TF_VAR_vertex_region",
 		"TF_VAR_proxy_port",
 		"TF_VAR_anthropic_key_file",
+		"TF_VAR_ami_id",
 	} {
 		t.Setenv(key, "")
 	}

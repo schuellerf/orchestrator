@@ -635,7 +635,7 @@ func hasLabel(labels []string, name string) bool {
 	return false
 }
 
-// setupGjollProxyVars sets OpenTofu variables for unified gjoll libvirt templates.
+// setupGjollProxyVars sets OpenTofu variables for unified gjoll templates (libvirt, AWS).
 func setupGjollProxyVars(cfg *config.Config, agentBackend string) error {
 	if cfg.SandboxBackend != "gjoll" {
 		return nil
@@ -643,6 +643,12 @@ func setupGjollProxyVars(cfg *config.Config, agentBackend string) error {
 
 	if err := os.Setenv("TF_VAR_agent_backend", agentBackend); err != nil {
 		return err
+	}
+
+	if cfg.AWSAMIID != "" {
+		if err := os.Setenv("TF_VAR_ami_id", cfg.AWSAMIID); err != nil {
+			return err
+		}
 	}
 
 	mode := cfg.ResolvedGjollProxyMode()

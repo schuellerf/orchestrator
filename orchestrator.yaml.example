@@ -20,6 +20,10 @@
 # Unified libvirt template — proxy mode is selected from llm_base_url / gjoll_env path.
 # gjoll_env: "../gjoll/examples/fedora-libvirt"
 #
+# AWS EC2 template (Fedora 43, nested virtualization):
+# gjoll_env: "../gjoll/examples/fedora-aws"
+# aws_ami_id: "ami-0edf1d45580ac3fa3"   # optional, default Fedora 43 us-east-1
+#
 # Vertex AI (cloud, default when llm_base_url is empty):
 # llm_base_url: ""
 # vertex_project_id: "your-gcp-project"

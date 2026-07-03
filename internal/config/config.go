@@ -45,6 +45,9 @@ const DefaultLLMBaseURL = "http://127.0.0.1:1234/v1"
 // DefaultVertexRegion is the default GCP region for Vertex AI proxy targets.
 const DefaultVertexRegion = "us-east5"
 
+// DefaultAWSAMIID is the default Fedora 43 x86_64 AMI in us-east-1.
+const DefaultAWSAMIID = "ami-0edf1d45580ac3fa3"
+
 // GjollCloudProxyPort is the in-VM port for gjoll credential proxies (vertex, anthropic).
 const GjollCloudProxyPort = 18080
 
@@ -68,6 +71,7 @@ type Config struct {
 
 	// Gjoll backend settings
 	GjollEnv string `yaml:"gjoll_env"` // path to .tf file or directory for VM provisioning
+	AWSAMIID string `yaml:"aws_ami_id"` // EC2 AMI for gjoll AWS templates
 
 	// Vertex AI settings (gjoll proxy_mode=vertex)
 	VertexProjectID string `yaml:"vertex_project_id"`
@@ -227,6 +231,9 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.VertexRegion == "" {
 		cfg.VertexRegion = DefaultVertexRegion
+	}
+	if cfg.AWSAMIID == "" {
+		cfg.AWSAMIID = DefaultAWSAMIID
 	}
 	if cfg.PodmanImage == "" {
 		cfg.PodmanImage = "fedora:43"
